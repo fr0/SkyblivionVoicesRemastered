@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/SkyblivionVoicesRemastered.App/SkyblivionVoicesRemastered.App.csproj" />
+    <Project Path="src/SkyblivionVoicesRemastered.Core/SkyblivionVoicesRemastered.Core.csproj" />
+    <Project Path="src/SkyblivionVoicesRemastered.Console/SkyblivionVoicesRemastered.Console.csproj" />
+  </Folder>
+</Solution>
