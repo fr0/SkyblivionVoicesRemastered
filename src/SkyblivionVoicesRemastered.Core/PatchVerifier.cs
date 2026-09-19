@@ -74,7 +74,7 @@ public static class PatchVerifier
           bytes += fi.Length;
           using var fs = fi.OpenRead();
           var header = new byte[expectedHeaderLength];
-          if (fs.Read(header, 0, expectedHeaderLength) < expectedHeaderLength || !CheckFUZEHeader(header)) 
+          if (fs.Read(header, 0, expectedHeaderLength) < expectedHeaderLength || !Utilities.CheckHeader(header, "FUZE"))
           {
             bad++;
             continue;
@@ -89,10 +89,5 @@ public static class PatchVerifier
       }
     }
     return ok;
-  }
-
-  static bool CheckFUZEHeader(byte[] header)
-  {
-    return header[0] == 'F' && header[1] == 'U' && header[2] == 'Z' && header[3] == 'E';
   }
 }

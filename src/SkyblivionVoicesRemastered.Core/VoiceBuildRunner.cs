@@ -200,8 +200,6 @@ public class VoiceBuildRunner(TextWriter log)
     }
     finally
     {
-      foreach (var r in archives.Values)
-        r.Dispose();
       try
       {
         Directory.Delete(tempRoot, true);

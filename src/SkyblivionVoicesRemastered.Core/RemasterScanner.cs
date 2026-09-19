@@ -132,63 +132,61 @@ public class RemasterScanner(TextWriter log)
         result.Warnings.Add($"Skipped archive {Path.GetFileName(bsaPath)}: {ex.Message}");
         continue;
       }
-      using (reader)
+
+      var archive = Path.GetFileName(bsaPath);
+      var found = 0;
+      foreach (var entry in reader.Entries)
       {
-        var archive = Path.GetFileName(bsaPath);
-        var found = 0;
-        foreach (var entry in reader.Entries)
+        var parts = entry.Folder.Split('\\');
+        if (parts.Length < 5 || !parts[0].Equals("sound", StringComparison.OrdinalIgnoreCase) || !parts[1].Equals("voice", StringComparison.OrdinalIgnoreCase))
+          continue;
+        var plugin = parts[2].ToLowerInvariant();
+        var race = parts[3].ToLowerInvariant();
+        var sex = parts[4].ToLowerInvariant();
+        var ext = Path.GetExtension(entry.FileName).ToLowerInvariant();
+        var baseName = Path.GetFileNameWithoutExtension(entry.FileName).ToLowerInvariant();
+        if (parts.Length == 5 && ext == ".lip")
         {
-          var parts = entry.Folder.Split('\\');
-          if (parts.Length < 5 || !parts[0].Equals("sound", StringComparison.OrdinalIgnoreCase) || !parts[1].Equals("voice", StringComparison.OrdinalIgnoreCase))
-            continue;
-          var plugin = parts[2].ToLowerInvariant();
-          var race = parts[3].ToLowerInvariant();
-          var sex = parts[4].ToLowerInvariant();
-          var ext = Path.GetExtension(entry.FileName).ToLowerInvariant();
-          var baseName = Path.GetFileNameWithoutExtension(entry.FileName).ToLowerInvariant();
-          if (parts.Length == 5 && ext == ".lip")
-          {
-            lipIndex[$"{plugin}\\{race}\\{sex}\\{baseName}"] = (archive, entry.FullPath);
-            continue;
-          }
-          if (parts.Length != 6 || ext != ".mp3")
-            continue;
-          var variant = parts[5].ToLowerInvariant();
-          if (!NewVoiceVariants.Contains(variant))
-            continue;
-          var parsed = VoiceLineName.TryParse(baseName);
-          var line = new VoiceLine
-          {
-            OblivionName = baseName,
-            Archive = archive,
-            ArchivePath = entry.FullPath,
-            SourcePlugin = plugin,
-            RaceFolder = race,
-            Sex = sex,
-            Variant = variant,
-          };
-          if (parsed != null)
-          {
-            line.InfoFormIdLower = parsed.FormIdLower;
-            line.ResponseNumber = parsed.ResponseNumber;
-            line.QuestEditorId = parsed.QuestPart;
-            line.TopicEditorId = parsed.TopicPart;
-          }
-          if (infoIndex.TryGetValue(baseName, out var info))
-          {
-            line.InfoResolved = true;
-            line.QuestEditorId = info.QuestEditorId;
-            line.TopicEditorId = info.TopicEditorId;
-            line.InfoFormIdLower = info.FormKey.ID;
-            line.InfoPlugin = info.FormKey.ModKey.FileName;
-            line.ResponseNumber = info.ResponseNumber;
-            line.ResponseText = info.Text;
-          }
-          lineIndex[$"{line.GroupKey}|{baseName}"] = line;
-          found++;
+          lipIndex[$"{plugin}\\{race}\\{sex}\\{baseName}"] = (archive, entry.FullPath);
+          continue;
         }
-        if (found > 0) _log.WriteLine($"  {archive}: {found} new voice recordings");
+        if (parts.Length != 6 || ext != ".mp3")
+          continue;
+        var variant = parts[5].ToLowerInvariant();
+        if (!NewVoiceVariants.Contains(variant))
+          continue;
+        var parsed = VoiceLineName.TryParse(baseName);
+        var line = new VoiceLine
+        {
+          OblivionName = baseName,
+          Archive = archive,
+          ArchivePath = entry.FullPath,
+          SourcePlugin = plugin,
+          RaceFolder = race,
+          Sex = sex,
+          Variant = variant,
+        };
+        if (parsed != null)
+        {
+          line.InfoFormIdLower = parsed.FormIdLower;
+          line.ResponseNumber = parsed.ResponseNumber;
+          line.QuestEditorId = parsed.QuestPart;
+          line.TopicEditorId = parsed.TopicPart;
+        }
+        if (infoIndex.TryGetValue(baseName, out var info))
+        {
+          line.InfoResolved = true;
+          line.QuestEditorId = info.QuestEditorId;
+          line.TopicEditorId = info.TopicEditorId;
+          line.InfoFormIdLower = info.FormKey.ID;
+          line.InfoPlugin = info.FormKey.ModKey.FileName;
+          line.ResponseNumber = info.ResponseNumber;
+          line.ResponseText = info.Text;
+        }
+        lineIndex[$"{line.GroupKey}|{baseName}"] = line;
+        found++;
       }
+      if (found > 0) _log.WriteLine($"  {archive}: {found} new voice recordings");
     }
     var lines = lineIndex.Values.ToList();
 

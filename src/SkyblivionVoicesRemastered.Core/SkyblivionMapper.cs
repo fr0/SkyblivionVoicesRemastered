@@ -146,7 +146,7 @@ public class SkyblivionMapper
       if (!pluginNames.Any(p => stem.StartsWith(Path.GetFileNameWithoutExtension(p), StringComparison.OrdinalIgnoreCase))) continue;
       try
       {
-        using var reader = new BsaReader(bsaPath);
+        var reader = new BsaReader(bsaPath);
         foreach (var entry in reader.Entries)
           if (entry.Folder.StartsWith("sound\\voice\\", StringComparison.OrdinalIgnoreCase))
             _existingVoiceNames.Add(Path.GetFileNameWithoutExtension(entry.FileName));
