@@ -171,12 +171,22 @@ public class LipGenerator(string exePath)
       .Trim();
     if (cleaned.Length == 0)
       cleaned = "...";
-    // a normal run takes < 1 second, a crashed or hung generator should not hold a worker for too long (??? arbitrary)
-    var (code, output) = ExternalTool.Run(ExePath, ExternalTool.Quote(wavPath) + " " + ExternalTool.Quote(cleaned), Path.GetDirectoryName(wavPath), 15_000);
-    if (File.Exists(lipPath))
-      return File.ReadAllBytes(lipPath);
-    // don't judge me too much for this, we aren't writing medical device software here
-    failure = code == -1 ? "timed out" : $"exit code {code}{(code == unchecked((int)0xC0000005) ? " (access violation)" : "")}: {output}";
+    // LipGenerator crashes (access violation) sometimes
+    // Could be antivirus/Windows Defender
+    // Retrying after a short, growing pause fixed every case I tested
+    const int attempts = 4;
+    for (var attempt = 1; attempt <= attempts; attempt++)
+    {
+      if (attempt > 1)
+        Thread.Sleep(250 << (attempt - 2)); // 250 ms, 500 ms, 1 s
+      // a normal run takes < 1 second, a crashed or hung generator should not hold a worker for too long (??? arbitrary)
+      var (code, output) = ExternalTool.Run(ExePath, ExternalTool.Quote(wavPath) + " " + ExternalTool.Quote(cleaned), Path.GetDirectoryName(wavPath), 15_000);
+      if (File.Exists(lipPath))
+        return File.ReadAllBytes(lipPath);
+      // don't judge me too much for this, we aren't writing medical device software here
+      failure = (code == -1 ? "timed out" : $"exit code {code}{(code == unchecked((int)0xC0000005) ? " (access violation)" : "")}: {output}")
+        + $" (after {attempt} attempt{(attempt == 1 ? "" : "s")})";
+    }
     return null;
   }
 }
