@@ -65,8 +65,10 @@ public class RemasterScanner(TextWriter log)
     var cache = mods.ToImmutableLinkCache<IOblivionMod, IOblivionModGetter>();
 
     // dialogue index keyed by Oblivion voice file base name
-    // later plugins override earlier ones
+    // Some esps override dialogue records with a localization key, others (Oblivion.esm for example) have
+    // the real English text. Discovered this the hard way.
     var infoIndex = new Dictionary<string, InfoEntry>(StringComparer.OrdinalIgnoreCase);
+    var localizationKeys = 0;
     foreach (var mod in mods)
     {
       foreach (var topic in mod.DialogTopics)
@@ -77,13 +79,22 @@ public class RemasterScanner(TextWriter log)
           var questEdid = item.Quest.TryResolve(cache, out var quest) ? quest.EditorID ?? "" : "";
           foreach (var resp in item.Responses)
           {
-            var name = VoiceFileNaming.Oblivion(questEdid, topicEdid, item.FormKey.ID, resp.Data?.ResponseNumber ?? 0); // what would cause resp.Data to be null? this is the lazy solution to handling that
-            infoIndex[name] = new InfoEntry(questEdid, topicEdid, item.FormKey, resp.Data?.ResponseNumber ?? 0, resp.ResponseText ?? "");
+            var responseNumber = resp.Data?.ResponseNumber ?? 0; // what would cause resp.Data to be null? this is the lazy solution to handling that
+            var name = VoiceFileNaming.Oblivion(questEdid, topicEdid, item.FormKey.ID, responseNumber);
+            var text = resp.ResponseText ?? "";
+            if (IsLocalizationKey(text))
+            {
+              localizationKeys++;
+              if (infoIndex.TryGetValue(name, out var previous) && !IsLocalizationKey(previous.Text))
+                text = previous.Text;
+            }
+            infoIndex[name] = new InfoEntry(questEdid, topicEdid, item.FormKey, responseNumber, text);
           }
         }
       }
     }
-    _log.WriteLine($"Indexed {infoIndex.Count} dialogue responses");
+    var unresolvedKeys = infoIndex.Values.Count(e => IsLocalizationKey(e.Text));
+    _log.WriteLine($"Indexed {infoIndex.Count} dialogue responses ({localizationKeys} localization-key overrides seen, {unresolvedKeys} responses have no real text)");
 
     // race folder names and the race whose recordings a race shares in the original game
     var raceFolders = new Dictionary<FormKey, string>();
@@ -291,6 +302,9 @@ public class RemasterScanner(TextWriter log)
       words.RemoveAt(words.Count - 1);
     return string.Join(' ', words).ToLowerInvariant();
   }
+
+  // the Remaster's plugins replace display strings with keys such as LOC_RT_... / LOC_FN_... that are resolved on the Unreal side
+  public static bool IsLocalizationKey(string? text) => text != null && text.StartsWith("LOC_", StringComparison.OrdinalIgnoreCase);
 
   private record InfoEntry(string QuestEditorId, string TopicEditorId, FormKey FormKey, int ResponseNumber, string Text);
 }
